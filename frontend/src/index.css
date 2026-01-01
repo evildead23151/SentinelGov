@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0c10;
+  --panel: #11141b;
+  --panel-border: #1e2530;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --primary: #3b82f6;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --success: #10b981;
+  --accent: #6366f1;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, sans-serif;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .panel {
+    @apply bg-[#11141b] border border-[#1e2530] rounded-lg p-4;
+  }
+  
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply bg-[#1e2530] hover:bg-[#2d3748] text-white font-medium py-2 px-4 rounded border border-[#334155] transition-colors;
+  }
+
+  .text-title {
+    @apply text-lg font-semibold tracking-tight uppercase text-slate-300;
+  }
+
+  .sidebar-link {
+    @apply flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all cursor-pointer;
+  }
+
+  .sidebar-link-active {
+    @apply bg-blue-600/10 text-blue-400 border-l-4 border-blue-600 rounded-none;
+  }
+}
