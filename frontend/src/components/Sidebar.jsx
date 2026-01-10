@@ -10,8 +10,10 @@ import {
     ClipboardList,
     Settings,
     Shield,
+    Users,
+    Building,
     Briefcase,
-    Users
+    List
 } from 'lucide-react';
 import useStore from '../store/useStore';
 
