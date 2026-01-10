@@ -73,10 +73,11 @@ class AnomalyEngine:
 def generate_hash(data: str) -> str:
     return hashlib.sha256(data.encode()).hexdigest()
 
-def log_event(db: Session, type: str, message: str, metadata: Dict = {}):
+def log_event(db: Session, type: str, message: str, severity: str = "INFO", metadata: Dict = {}):
     event = models.Event(
         type=type,
         message=message,
+        severity=severity,
         metadata_json=metadata
     )
     db.add(event)

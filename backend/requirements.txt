@@ -6,3 +6,7 @@ pydantic-settings
 python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
+google-cloud-alloydb-connector[pg8000]
+pg8000
+python-dotenv
+mcp

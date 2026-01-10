@@ -11,14 +11,19 @@ import {
 } from 'lucide-react';
 
 const AuditLogs = () => {
-    const logs = [
-        { id: 'LOG-88291', time: '2023-11-01 14:22:01', actor: 'REYNOLDS_J', action: 'VENDOR_FREEZE', target: 'GLOBAL_SUPPLIES_CORP', hash: 'e3b0...2786', clearance: 'L4' },
-        { id: 'LOG-88290', time: '2023-11-01 14:15:32', actor: 'SYSTEM', action: 'PATTERN_DETECTED', target: 'TXN_9921_X', hash: 'fb32...a11c', clearance: 'SYS' },
-        { id: 'LOG-88289', time: '2023-11-01 13:42:11', actor: 'REYNOLDS_J', action: 'CASE_ESCALATE', target: 'CASE_9092', hash: '3a21...ef09', clearance: 'L4' },
-        { id: 'LOG-88288', time: '2023-11-01 13:00:00', actor: 'SYSTEM', action: 'DATA_INGEST_COMPLETE', target: 'BATCH_TR_88', hash: '99d1...bc44', clearance: 'SYS' },
-        { id: 'LOG-88287', time: '2023-11-01 12:45:00', actor: 'DOE_K', action: 'DASHBOARD_ACCESS', target: 'SOC_CORE', hash: '11a2...321x', clearance: 'L2' },
-        { id: 'LOG-88286', time: '2023-11-01 12:30:15', actor: 'SYSTEM', action: 'HASH_VERIFICATION', target: 'LEDGER_MAIN', hash: '55c3...dd91', clearance: 'SYS' },
-    ];
+    const [logs, setLogs] = React.useState([]);
+
+    React.useEffect(() => {
+        fetch('http://127.0.0.1:8000/api/audit/logs')
+            .then(res => res.json())
+            .then(data => setLogs(data))
+            .catch(err => console.error(err));
+    }, []);
+
+    const formatTime = (isoString) => {
+        if (!isoString) return 'N/A';
+        return new Date(isoString).toLocaleString();
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -56,7 +61,7 @@ const AuditLogs = () => {
                         <thead>
                             <tr className="text-[10px] border-b border-[#1e2530] text-slate-500 uppercase tracking-widest font-black">
                                 <th className="pb-4">Timestamp (UTC)</th>
-                                <th className="pb-4">Actor ID</th>
+                                <th className="pb-4">GovID (Actor)</th>
                                 <th className="pb-4">Action Event</th>
                                 <th className="pb-4">Resource Target</th>
                                 <th className="pb-4">Integrity Hash</th>
@@ -66,11 +71,11 @@ const AuditLogs = () => {
                         <tbody className="text-[11px] font-mono">
                             {logs.map((log) => (
                                 <tr key={log.id} className="border-b border-[#1e2530]/50 hover:bg-slate-800/20 transition-colors group">
-                                    <td className="py-4 text-slate-400">{log.time}</td>
+                                    <td className="py-4 text-slate-400">{formatTime(log.timestamp)}</td>
                                     <td className="py-4">
                                         <div className="flex items-center space-x-2">
                                             <Fingerprint className="w-3.5 h-3.5 text-blue-500 opacity-50" />
-                                            <span className="font-bold text-slate-300">{log.actor}</span>
+                                            <span className="font-bold text-slate-300">{log.actor_govid || log.actor_id}</span>
                                         </div>
                                     </td>
                                     <td className="py-4">
@@ -78,10 +83,10 @@ const AuditLogs = () => {
                                             {log.action}
                                         </span>
                                     </td>
-                                    <td className="py-4 text-slate-500">{log.target}</td>
-                                    <td className="py-4 text-blue-500/50 group-hover:text-blue-400 transition-colors">{log.hash}</td>
+                                    <td className="py-4 text-slate-500">{log.details ? log.details.substring(0, 30) + '...' : 'N/A'}</td>
+                                    <td className="py-4 text-blue-500/50 group-hover:text-blue-400 transition-colors font-mono text-[10px]">{log.integrity_hash || 'PENDING'}</td>
                                     <td className="py-4 text-right">
-                                        <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 font-black">{log.clearance}</span>
+                                        <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 font-black">L3</span>
                                     </td>
                                 </tr>
                             ))}

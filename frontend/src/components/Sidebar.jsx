@@ -21,11 +21,14 @@ const Sidebar = () => {
     const links = [
         { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
         { name: 'Data Ingestion', path: '/ingestion', icon: Database },
+        { name: 'Governance Center', path: '/governance/detection', icon: Shield },
         { name: 'Detection Center', path: '/detection', icon: Search },
         { name: 'Active Alerts', path: '/alerts', icon: Bell },
         { name: 'Investigations', path: '/cases', icon: Briefcase },
         { name: 'Entity Graph', path: '/graph', icon: Share2 },
         { name: 'Reports', path: '/reports', icon: FileText },
+        { name: 'Procurement', path: '/procurement', icon: Building }, // New link
+        { name: 'Transparency', path: '/transparency', icon: List }, // New link
         { name: 'Audit Logs', path: '/audit', icon: ClipboardList },
         { name: 'System Status', path: '/settings', icon: Settings },
     ];
@@ -38,15 +41,17 @@ const Sidebar = () => {
             </div>
 
             <div className="px-4 py-2">
-                <div className="flex items-center space-x-3 p-3 bg-slate-800/50 rounded-lg mb-6">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold">
-                        {user.name[0]}
+                {user && (
+                    <div className="flex items-center space-x-3 p-3 bg-slate-800/50 rounded-lg mb-6 border border-white/5">
+                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-black shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+                            {user.full_name?.[0] || 'U'}
+                        </div>
+                        <div className="overflow-hidden">
+                            <div className="text-[11px] font-black uppercase tracking-tight truncate text-white">{user.full_name || 'Unknown Officer'}</div>
+                            <div className="text-[9px] font-mono text-slate-500 uppercase truncate">{user.rank || 'N/A'} // {user.gov_id || 'PENDING'}</div>
+                        </div>
                     </div>
-                    <div>
-                        <div className="text-sm font-medium">{user.name}</div>
-                        <div className="text-xs text-slate-500">{user.badgeId}</div>
-                    </div>
-                </div>
+                )}
             </div>
 
             <nav className="flex-1 px-2 space-y-1">

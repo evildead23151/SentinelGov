@@ -1,186 +1,196 @@
-import React, { useState, useEffect } from 'react';
-import {
-    Database,
-    Upload,
-    Play,
-    History,
-    CheckCircle2,
-    AlertCircle,
-    Terminal,
-    Clock
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Database, Upload, CheckCircle2, AlertCircle, PlusCircle, Terminal, Clock, FileText, Trash2 } from 'lucide-react';
+import { ingestApi } from '../api/client';
 
 const Ingestion = () => {
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [progress, setProgress] = useState(0);
+    const navigate = useNavigate();
+    const [dragging, setDragging] = useState(false);
+    const [file, setFile] = useState(null);
+    const [status, setStatus] = useState('IDLE'); // IDLE, UPLOADING, SUCCESS, ERROR
     const [logs, setLogs] = useState([
-        { id: 1, time: '14:02:01', type: 'SYS', msg: 'Handshake initialized with Treasury_Gateway_v4' },
-        { id: 2, time: '14:02:03', type: 'AUTH', msg: 'Token verified. Encryption: AES-256-GCM.' },
+        { id: 1, time: '12:04:11', msg: 'System ready for gateway input.', type: 'INFO' },
+        { id: 2, time: '12:05:22', msg: 'Establishing encrypted bridge...', type: 'PROCESS' }
     ]);
 
-    const startProcess = () => {
-        setIsProcessing(true);
-        setProgress(0);
-        const newLog = { id: Date.now(), time: new Date().toLocaleTimeString(), type: 'INGEST', msg: 'Stream started. Buffer size: 1024KB.' };
-        setLogs(prev => [...prev, newLog]);
+    const addLog = (msg, type = 'INFO') => {
+        const time = new Date().toLocaleTimeString('en-GB');
+        setLogs(prev => [{ id: Date.now(), time, msg, type }, ...prev].slice(0, 10));
     };
 
-    useEffect(() => {
-        if (isProcessing && progress < 100) {
-            const timer = setTimeout(() => setProgress(prev => prev + 5), 500);
-            if (progress === 50) {
-                setLogs(prev => [...prev, { id: Date.now(), time: new Date().toLocaleTimeString(), type: 'VAL', msg: 'Schema deviation in column "vendor_risk". Auto-correcting type (str -> int).' }]);
-            }
-            return () => clearTimeout(timer);
-        } else if (progress >= 100) {
-            setIsProcessing(false);
-            setLogs(prev => [...prev, { id: Date.now(), time: new Date().toLocaleTimeString(), type: 'SYS', msg: 'Batch chunk 8 completed. Committing to ledger...' }]);
+    const handleFile = (e) => {
+        const selected = e.target.files[0];
+        if (selected && selected.name.endsWith('.csv')) {
+            setFile(selected);
+            addLog(`Captured file: ${selected.name} (${(selected.size / 1024).toFixed(1)} KB)`, 'SUCCESS');
+        } else {
+            addLog('Invalid format. System requires RFC-4180 compliant CSV.', 'ERROR');
         }
-    }, [isProcessing, progress]);
+    };
+
+    const triggerIngest = async () => {
+        if (!file) return;
+
+        setStatus('UPLOADING');
+        addLog(`Initiating cryptographic data transfer for ${file.name}...`, 'PROCESS');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await ingestApi.upload(formData);
+
+            setStatus('SUCCESS');
+            addLog(`Ingestion Complete: ${res.data.processed} records added.`, 'SUCCESS');
+
+            // Palantir-Style: Instant Transition to Analysis
+            setTimeout(() => {
+                navigate('/dashboard', { state: { ingestReport: res.data } });
+            }, 800);
+
+        } catch (err) {
+            setStatus('ERROR');
+            addLog(`Critical Failure: ${err.message}`, 'ERROR');
+        }
+    };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-700">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Data Ingestion Protocol</h1>
-                    <p className="text-slate-500 text-sm mt-1">Clearance Level: L5 // Eyes Only // v2.4.1 Stable</p>
-                </div>
-                <div className="flex space-x-3">
-                    <button className="btn-secondary flex items-center space-x-2">
-                        <History className="w-4 h-4" />
-                        <span>Load History</span>
-                    </button>
-                    <button
-                        onClick={startProcess}
-                        disabled={isProcessing}
-                        className={`btn-primary flex items-center space-x-2 ${isProcessing ? 'opacity-50' : ''}`}
-                    >
-                        <Play className="w-4 h-4" />
-                        <span>{isProcessing ? 'Processing...' : 'Start Batch Process'}</span>
-                    </button>
+                    <h1 className="text-2xl font-bold flex items-center space-x-3 text-white">
+                        <Database className="w-6 h-6 text-blue-500" />
+                        <span>Data Ingestion Protocol</span>
+                    </h1>
+                    <p className="text-slate-500 text-sm mt-1 uppercase tracking-wider font-mono">Status: Secure Layer Active (ENC: AES-256)</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Source Selection */}
-                <div className="lg:col-span-3 space-y-6">
-                    <div className="panel">
-                        <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Source Selection</h3>
-                        <div className="grid grid-cols-4 gap-4">
-                            {[
-                                { name: 'Treasury Dept', id: 'TR-8821-X', active: true },
-                                { name: 'Railways Net', id: 'RN-1044-B', active: false },
-                                { name: 'Welfare Dist.', id: 'WD-9920-L', active: false },
-                                { name: 'Procurement', id: 'PC-4412-M', active: false },
-                            ].map(source => (
-                                <div key={source.name} className={`p-4 rounded-xl border cursor-pointer transition-all ${source.active ? 'bg-blue-600/10 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-slate-900 border-slate-700 hover:border-slate-500'}`}>
-                                    <div className="flex justify-between items-start mb-4">
-                                        <Database className={`w-6 h-6 ${source.active ? 'text-blue-500' : 'text-slate-500'}`} />
-                                        {source.active && <CheckCircle2 className="w-4 h-4 text-blue-500" />}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 space-y-6">
+                    <div
+                        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                        onDragLeave={() => setDragging(false)}
+                        onDrop={(e) => { e.preventDefault(); setDragging(false); handleFile({ target: { files: e.dataTransfer.files } }); }}
+                        className={`panel border-dashed border-2 min-h-[400px] flex flex-col items-center justify-center transition-all ${dragging ? 'border-blue-500 bg-blue-500/5' : 'border-slate-800 hover:border-slate-700'
+                            }`}
+                    >
+                        {!file ? (
+                            <div className="text-center group">
+                                <div className="p-8 rounded-full bg-slate-900 border border-slate-800 mb-6 group-hover:scale-110 transition-transform inline-block">
+                                    <Upload className={`w-12 h-12 ${dragging ? 'text-blue-500' : 'text-slate-600'}`} />
+                                </div>
+                                <h2 className="text-lg font-bold text-slate-200">Drag & Drop Intelligence Feed</h2>
+                                <p className="text-sm text-slate-500 mt-2 mb-8">Drop .CSV file to begin batch verification</p>
+                                <label className="btn-primary py-3 px-8 cursor-pointer inline-flex items-center space-x-2">
+                                    <PlusCircle className="w-4 h-4" />
+                                    <span>Select Archive</span>
+                                    <input type="file" className="hidden" accept=".csv" onChange={handleFile} />
+                                </label>
+                            </div>
+                        ) : (
+                            <div className="text-center w-full max-w-md p-8 animate-in zoom-in-95 duration-300">
+                                <div className="panel bg-[#11141b] border-blue-500/30 p-6 mb-8 text-left">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center space-x-3">
+                                            <FileText className="w-8 h-8 text-blue-500" />
+                                            <div>
+                                                <p className="text-sm font-bold text-white">{file.name}</p>
+                                                <p className="text-[10px] text-slate-500 uppercase">{(file.size / 1024).toFixed(1)} KB • CSV ARCHIVE</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => setFile(null)} className="p-2 hover:bg-red-500/10 rounded-lg group">
+                                            <Trash2 className="w-4 h-4 text-slate-500 group-hover:text-red-500 transition-colors" />
+                                        </button>
                                     </div>
-                                    <div className="text-sm font-bold">{source.name}</div>
-                                    <div className="text-[10px] font-mono text-slate-500 mt-1">ID: {source.id}</div>
+                                    <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-blue-500 transition-all duration-500"
+                                            style={{ width: status === 'UPLOADING' ? '70%' : status === 'SUCCESS' ? '100%' : '0%' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={triggerIngest}
+                                    disabled={status === 'UPLOADING'}
+                                    className={`w-full py-4 rounded font-black tracking-[0.2em] uppercase text-xs transition-all shadow-lg ${status === 'UPLOADING' ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20'
+                                        }`}
+                                >
+                                    {status === 'UPLOADING' ? 'Synchronizing Cryptographic Chain...' : 'Initiate Batch Ingestion'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="panel border-t-2 border-slate-700">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] flex items-center">
+                                <Terminal className="w-3 h-3 mr-2" />
+                                <span>Real-time Communication Log</span>
+                            </h3>
+                            <span className="flex items-center space-x-1.5 text-[9px] text-green-500 font-bold uppercase tracking-widest px-2 py-0.5 bg-green-500/10 rounded">
+                                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                                <span>Gateway Online</span>
+                            </span>
+                        </div>
+                        <div className="space-y-3 font-mono">
+                            {logs.map((log) => (
+                                <div key={log.id} className="text-[11px] flex items-start space-x-4 group">
+                                    <span className="text-slate-600 font-bold">{log.time}</span>
+                                    <span className={`font-black tracking-tighter w-16 text-right ${log.type === 'ERROR' ? 'text-red-500' : log.type === 'SUCCESS' ? 'text-green-500' : log.type === 'PROCESS' ? 'text-blue-500' : 'text-slate-500'}`}>[{log.type}]</span>
+                                    <span className="text-slate-400 group-hover:text-slate-200 transition-colors">{log.msg}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <div className="panel border-blue-500/20 bg-blue-500/5">
+                        <h3 className="text-sm font-bold mb-4 flex items-center text-blue-400">
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            <span>Protocol Standards</span>
+                        </h3>
+                        <p className="text-xs text-slate-400 leading-relaxed italic mb-6">Ensure your ingest CSV satisfies the following structural requirements for Anomaly Engine analysis:</p>
+                        <div className="space-y-4">
+                            {[
+                                { col: 'vendor_id', desc: 'Unique alphanumeric identifier' },
+                                { col: 'vendor_name', desc: 'Display name for entity mapping' },
+                                { col: 'amount', desc: 'Integer or Float of payment' },
+                                { col: 'timestamp', desc: 'ISO 8601 formatted datetime' },
+                                { col: 'department', desc: 'Originating government dept' }
+                            ].map(item => (
+                                <div key={item.col} className="flex justify-between items-center p-2.5 bg-slate-900 border border-slate-800 rounded">
+                                    <code className="text-[10px] font-black text-blue-500 uppercase tracking-tighter">{item.col}</code>
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold">{item.desc}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    <div className="panel relative overflow-hidden min-h-[300px] flex flex-col items-center justify-center border-dashed border-2 border-slate-800 bg-slate-900/20">
-                        {isProcessing ? (
-                            <div className="w-full max-w-md space-y-8 p-8">
-                                <div className="text-center">
-                                    <div className="inline-block p-4 bg-blue-600/10 rounded-full mb-4 animate-pulse">
-                                        <Upload className="w-10 h-10 text-blue-500" />
+                    <div className="panel">
+                        <h3 className="text-sm font-bold mb-6 flex items-center">
+                            <Clock className="w-4 h-4 mr-2 text-slate-500" />
+                            <span>Gateway History</span>
+                        </h3>
+                        <div className="space-y-2">
+                            {[
+                                { name: 'Q4_TRANS_BATCH_992.csv', status: 'VERIFIED', size: '1.2 MB' },
+                                { name: 'RAIL_PROC_OCT_24.csv', status: 'VERIFIED', size: '840 KB' },
+                                { name: 'MIN_FIN_DEDUP_02.csv', status: 'REJECTED', size: '2.1 MB' }
+                            ].map((job, i) => (
+                                <div key={i} className="flex items-center justify-between p-3 rounded hover:bg-slate-800/40 transition-colors border border-transparent hover:border-slate-800">
+                                    <div className="flex items-center space-x-3">
+                                        <FileText className="w-4 h-4 text-slate-500" />
+                                        <div>
+                                            <p className="text-[11px] font-bold text-slate-300 truncate w-32">{job.name}</p>
+                                            <p className="text-[9px] text-slate-600 font-mono italic">{job.size}</p>
+                                        </div>
                                     </div>
-                                    <h3 className="text-xl font-bold">Ingesting Encrypted Batch...</h3>
-                                    <p className="text-sm text-slate-500 mt-2">Source: Treasury Dept // Chunk {Math.floor(progress / 10) + 1}</p>
+                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded tracking-widest ${job.status === 'VERIFIED' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>{job.status}</span>
                                 </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-xs font-mono">
-                                        <span className="text-blue-400">{progress}% COMPLETE</span>
-                                        <span className="text-slate-500">{Math.floor(progress * 8.42)}K / 84.2K RECORDS</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-blue-500 transition-all duration-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-                                            style={{ width: `${progress}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="p-3 bg-slate-800/50 rounded-lg text-center">
-                                        <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Errors</div>
-                                        <div className="text-lg font-bold text-red-500">0.04%</div>
-                                    </div>
-                                    <div className="p-3 bg-slate-800/50 rounded-lg text-center">
-                                        <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Confidence</div>
-                                        <div className="text-lg font-bold text-green-500">99.8</div>
-                                    </div>
-                                    <div className="p-3 bg-slate-800/50 rounded-lg text-center">
-                                        <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Integrity</div>
-                                        <CheckCircle2 className="w-5 h-5 text-blue-500 mx-auto" />
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center p-12">
-                                <div className="inline-block p-6 bg-slate-800 rounded-full mb-6 border border-slate-700">
-                                    <Upload className="w-12 h-12 text-slate-500" />
-                                </div>
-                                <h3 className="text-lg font-bold text-slate-300">Click to upload or drag encrypted archive</h3>
-                                <p className="text-sm text-slate-500 mt-2 max-w-xs">Max file size: 5GB (Auto-sharding enabled for large datasets)</p>
-                                <div className="mt-8 flex justify-center space-x-3">
-                                    <button className="btn-secondary text-xs px-6">Batch Upload</button>
-                                    <button className="btn-secondary text-xs px-6">API Stream</button>
-                                    <button className="btn-secondary text-xs px-6">Legacy FTP</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* System Logs */}
-                <div className="panel h-full flex flex-col">
-                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center justify-between">
-                        <span className="flex items-center space-x-2">
-                            <Terminal className="w-3 h-3" />
-                            <span>System Log</span>
-                        </span>
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                    </h3>
-
-                    <div className="flex-1 overflow-auto font-mono text-[10px] space-y-3 custom-scrollbar pr-2">
-                        <div className="text-slate-600 mb-4 font-bold border-b border-slate-800 pb-2 uppercase tracking-tighter">
-                            SESSION_ID: 0x992A-F11
-                        </div>
-                        {logs.map((log) => (
-                            <div key={log.id} className="flex space-x-3 group">
-                                <span className="text-slate-500 shrink-0">{log.time}</span>
-                                <span className={`shrink-0 font-bold ${log.type === 'ERR' ? 'text-red-500' :
-                                        log.type === 'WARN' ? 'text-amber-500' :
-                                            log.type === 'SYS' ? 'text-blue-400' :
-                                                'text-green-500'
-                                    }`}>[{log.type}]</span>
-                                <span className="text-slate-400 group-hover:text-slate-200 transition-colors">{log.msg}</span>
-                            </div>
-                        ))}
-                        {isProcessing && (
-                            <div className="flex space-x-3 items-center">
-                                <span className="w-2 h-2 bg-blue-500 rounded-full animate-ping"></span>
-                                <span className="text-blue-500 italic">Listening for next packet_</span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-800">
-                        <div className="flex items-center justify-between text-[10px] text-slate-500">
-                            <span className="flex items-center space-x-1">
-                                <Clock className="w-3 h-3" />
-                                <span>Elapsed: 00:04:12</span>
-                            </span>
-                            <span className="font-mono">IP: 10.99.1.42</span>
+                            ))}
                         </div>
                     </div>
                 </div>

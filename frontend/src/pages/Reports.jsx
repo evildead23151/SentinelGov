@@ -21,12 +21,39 @@ const Reports = () => {
         { id: 'RPT-2023-X95', name: 'Raw Data Dump - Sector 7', date: 'Oct 23, 11:20', hash: 'HASH_MISMATCH', status: 'Error' },
     ]);
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
         setIsGenerating(true);
-        setTimeout(() => {
+        try {
+            // Using fetch with authenticated endpoint if we add auth later, but for now this works.
+            // Ideally we should use the apiClient from ../api/client but it needs blob support config.
+            const response = await fetch('http://localhost:8000/api/reports/export');
+            if (!response.ok) throw new Error('Report generation failed');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sentinelgov_audit_report_${new Date().toISOString().split('T')[0]}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            // Add to history (Mock for now)
+            setReports(prev => [{
+                id: `RPT-2026-${Math.floor(Math.random() * 1000)}`,
+                name: 'Official Audit Report (Auto-Generated)',
+                date: 'Just Now',
+                hash: 'VERIFIED_SIG_MD5',
+                status: 'Ready'
+            }, ...prev]);
+
+        } catch (error) {
+            console.error('Export Error:', error);
+            alert('Forensic Export Failed: System integrity check required.');
+        } finally {
             setIsGenerating(false);
-            alert('Official Audit Report Generated Successfully. Cryptographically signed PDF is ready for export.');
-        }, 2000);
+        }
     };
 
     return (
@@ -148,8 +175,8 @@ const Reports = () => {
                                     <td className="py-4 text-right">
                                         <div className="flex items-center justify-end space-x-3">
                                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${r.status === 'Ready' ? 'bg-green-500/10 text-green-500' :
-                                                    r.status === 'Processing' ? 'bg-blue-500/10 text-blue-400 animate-pulse' :
-                                                        'bg-red-500/10 text-red-500'
+                                                r.status === 'Processing' ? 'bg-blue-500/10 text-blue-400 animate-pulse' :
+                                                    'bg-red-500/10 text-red-500'
                                                 }`}>
                                                 {r.status}
                                             </span>

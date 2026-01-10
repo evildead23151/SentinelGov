@@ -1,0 +1,3 @@
+vendor_id,vendor_name,amount,invoice_id,timestamp,department
+V_FRAUD_01,Shell Corp A,950000.0,INV-999,2026-01-10T12:00:00,Defense
+V_NORMAL_01,Legacy Supplies,1500.0,INV-101,2026-01-10T13:00:00,Health
