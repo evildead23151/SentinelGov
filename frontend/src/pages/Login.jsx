@@ -13,7 +13,8 @@ const Login = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const from = location.state?.from?.pathname || "/dashboard";
+    // Default intended destination
+    const from = location.state?.from?.pathname;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -21,8 +22,20 @@ const Login = () => {
         setLoading(true);
 
         try {
-            await login(username, password);
-            navigate(from, { replace: true });
+            const user = await login(username, password);
+
+            // STRICT IDENTITY REDIRECT LOGIC
+            // If the user was trying to go somewhere specific (e.g. they got kicked out), send them there IF applicable.
+            // OTHERWISE, enforce strict dashboard segregation.
+
+            if (user.role === 'FINANCE_OFFICER' || user.role === 'OVERSIGHT') {
+                // Finance/Treasury View
+                navigate(from && from.includes('/finance') ? from : '/finance/dashboard', { replace: true });
+            } else {
+                // Investigator/Police View
+                navigate(from && !from.includes('/finance') ? from : '/dashboard', { replace: true });
+            }
+
         } catch (err) {
             setError(err.message);
             setLoading(false);

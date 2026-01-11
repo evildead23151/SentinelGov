@@ -22,10 +22,13 @@ export const systemApi = {
     getStatus: () => apiClient.get('/system/status'),
     getEvents: () => apiClient.get('/system/events'),
     getTrend: () => apiClient.get('/metrics/anomaly-trend'),
-    trainModel: () => apiClient.post('/model/train'),
     login: (credentials) => apiClient.post('/auth/login', credentials),
     register: (data) => apiClient.post('/auth/register', data),
     getMe: () => apiClient.get('/auth/me'),
+    getTenders: () => apiClient.get('/tenders'),
+    chat: (data) => apiClient.post('/ai/chat', data),
+    getMessages: (role) => apiClient.get('/messages', { params: { role } }),
+    getFinanceDashboard: () => apiClient.get('/finance/dashboard'),
 };
 
 export const vendorApi = {
@@ -36,22 +39,19 @@ export const vendorApi = {
 export const alertApi = {
     list: (filters = {}) => apiClient.get('/alerts', { params: filters }),
     get: (id) => apiClient.get(`/alerts/${id}`),
-    takeAction: (id, action, note) => apiClient.post(`/alerts/${id}/action`, { action, note }),
     acknowledge: (id) => apiClient.post(`/alerts/${id}/acknowledge`),
-    assignCommittee: (id, members, note) => apiClient.post(`/alerts/${id}/assign-committee`, { committee_members: members, note }),
-    escalate: (id) => apiClient.post(`/alerts/${id}/escalate`),
+    resolve: (id, payload) => apiClient.post(`/alerts/${id}/resolve`, payload), // {note, outcome}
     exportBrief: (id) => apiClient.get(`/alerts/${id}/export-brief`, { responseType: 'blob' }),
-    resolve: (id, resolution, findings) => apiClient.post(`/alerts/${id}/resolve`, { resolution, findings })
+};
+
+export const transactionApi = {
+    release: (id, payload) => apiClient.post(`/transactions/${id}/release`, payload), // {note}
+    block: (id) => apiClient.post(`/transactions/${id}/block`),
 };
 
 export const caseApi = {
     list: () => apiClient.get('/cases'),
     create: (data) => apiClient.post('/cases', data),
-    escalate: (id) => apiClient.post(`/cases/${id}/escalate`),
-};
-
-export const analyticsApi = {
-    getBaseline: (vendorId, department) => apiClient.get(`/analytics/expenditure-baseline`, { params: { vendor_id: vendorId, department } })
 };
 
 export const ingestApi = {
@@ -60,7 +60,6 @@ export const ingestApi = {
             'Content-Type': 'multipart/form-data',
         },
     }),
-    simulate: () => apiClient.post('/ingest/simulate'),
 };
 
 export default apiClient;

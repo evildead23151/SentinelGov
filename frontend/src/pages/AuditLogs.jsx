@@ -16,7 +16,7 @@ const AuditLogs = () => {
     React.useEffect(() => {
         fetch('http://127.0.0.1:8000/api/audit/logs')
             .then(res => res.json())
-            .then(data => setLogs(data))
+            .then(data => setLogs(Array.isArray(data) ? data : []))
             .catch(err => console.error(err));
     }, []);
 

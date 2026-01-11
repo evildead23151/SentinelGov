@@ -10,3 +10,4 @@ google-cloud-alloydb-connector[pg8000]
 pg8000
 python-dotenv
 mcp
+reportlab

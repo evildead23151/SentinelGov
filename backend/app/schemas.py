@@ -13,7 +13,7 @@ class UserBase(BaseModel):
     username: str
     gov_id: str
     full_name: str
-    email: Optional[str] = None # Added Email
+    email: Optional[str] = None
     role: str
     rank: str
     department: str
@@ -31,7 +31,7 @@ class UserCreate(BaseModel):
     username: str
     password: str
     gov_id: Optional[str] = None
-    email: Optional[str] = None # Added Email
+    email: Optional[str] = None
     full_name: str
     role: str
     rank: str
@@ -56,13 +56,11 @@ class Transaction(BaseModel):
     timestamp: datetime
     department: str
     risk_score: float
-    payment_status: str
+    status: str
     explanation: str
 
-class EventBase(BaseModel):
-    type: str
-    message: str
-    timestamp: datetime
+    class Config:
+        from_attributes = True
 
 # --- INGESTION SCHEMAS ---
 class TransactionIngest(BaseModel):
@@ -96,9 +94,17 @@ class Alert(BaseModel):
     acknowledged_at: Optional[datetime] = None
     case_id: Optional[int] = None
     created_at: datetime
+    tender_id: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+class AlertResolveRequest(BaseModel):
+    note: str
+    outcome: str # CLEARED, FRAUD_CONFIRMED, UNDER_INVESTIGATION
+
+class TransactionReleaseRequest(BaseModel):
+    note: Optional[str] = "Treasury Authorization"
 
 class CaseCreate(BaseModel):
     title: str
@@ -111,24 +117,22 @@ class InvestigatorAction(BaseModel):
     note: Optional[str] = None
     committee_members: Optional[List[int]] = None
 
-class InvestigationResult(BaseModel):
-    findings: str
-    resolution: str # CLEARED, RECTIFIED, PENALIZED
-
-# --- FORENSIC INTELLIGENCE SCHEMAS (Cloud-Grade Spec) ---
+# --- FORENSIC INTELLIGENCE SCHEMAS ---
 class ForensicFeatures(BaseModel):
-    log_amount: float
-    amount_z_vendor: float
-    vendor_txn_count_7d: int
-    vendor_txn_count_30d: int
-    unique_departments_30d: int
-    time_distance_noon: float
+    bid_rank: int
+    spread_ratio: float
+    num_bidders: int
+    tender_budget_ratio: float
+    vendor_win_frequency: float
 
 class StatSignals(BaseModel):
-    amount_z_vendor: float
+    z_tender: Optional[float] = None
+    insufficient_depth: bool = False
 
 class ForensicPayload(BaseModel):
-    transaction_id: str
+    tender_id: str
+    winning_vendor_id: str
+    winning_bid_amount: float
     features: ForensicFeatures
     rule_hits: List[str]
     stat_signals: StatSignals
@@ -151,31 +155,65 @@ class ForensicResult(BaseModel):
     explanation: str
     model_info: ModelInfo
 
-# --- PROCUREMENT SCHEMAS ---
-class ProcurementCreate(BaseModel):
-    title: str
-    department: str
-    vendor_name: str
-    amount: float
-    description: Optional[str] = None
+# --- TENDER SCHEMAS ---
+class BidBase(BaseModel):
+    vendor_id: str
+    bid_amount: float
+    rank: int
 
-class ProcurementResponse(BaseModel):
-    id: int
-    title: str
+class TenderBase(BaseModel):
+    tender_id: str
     department: str
-    amount: float
+    estimated_budget: float
+    num_bidders: int
+    winning_vendor_id: str
+    winning_bid_amount: float
+    award_timestamp: datetime
     status: str
-    requestor: str
+
+class TenderCreate(TenderBase):
+    bids: List[BidBase]
+
+class Tender(TenderBase):
+    id: int
+    bids: List[BidBase]
+    class Config:
+        from_attributes = True
+
+# --- AI CHAT SCHEMAS ---
+class AIChatRequest(BaseModel):
+    actor_gov_id: str
+    role: str
+    context_scope: Optional[str] = "GENERAL"
+    message: str
+
+
+class AIChatResponse(BaseModel):
+    reply: str
+    disclaimer: str
+    trace_id: str
+
+# --- PROCUREMENT SCHEMAS ---
+class ProcurementRequestBase(BaseModel):
+    title: str
+    description: str
+    department: str
     vendor_name: str
-    description: Optional[str]
+    amount: float
+
+class ProcurementRequestCreate(ProcurementRequestBase):
+    pass
+
+class ProcurementRequest(ProcurementRequestBase):
+    id: int
+    status: str
     document_hash: str
     created_at: datetime
-    sanctioned_at: Optional[datetime]
-    sanctioner: Optional[str]
+    sanctioned_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
 class SanctionAction(BaseModel):
-    action: str # SANCTION, REJECT
-    comment: Optional[str] = None
+    action: str # SANCTIONED, REJECTED
+    note: Optional[str] = None

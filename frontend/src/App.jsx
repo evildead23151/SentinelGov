@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import useStore from './store/useStore';
 
 // Pages - Lazy loaded or imported
 import Home from './pages/Home';
@@ -15,44 +16,51 @@ import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import CaseList from './pages/CaseList';
 import DetectionCenter from './pages/DetectionCenter';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ProcurementPortal from './pages/ProcurementPortal'; // Added import
-import TransparencyBoard from './pages/TransparencyBoard'; // Added import for TransparencyBoard
-import ErrorBoundary from './components/ErrorBoundary';
-import AuthGate from './components/AuthGate';
+import ProcurementPortal from './pages/ProcurementPortal';
+import TransparencyBoard from './pages/TransparencyBoard';
+import FinanceDashboard from './pages/FinanceDashboard';
+import SecuredErrorBoundary from './components/SecuredErrorBoundary';
 
 function App() {
+  const { switchRole, user } = useStore();
+
+  useEffect(() => {
+    // Auto-login as Investigator on mount if no user
+    if (!user) {
+      switchRole('INVESTIGATOR');
+    }
+  }, []);
+
   return (
-    <ErrorBoundary>
+    <SecuredErrorBoundary>
       <Router>
         <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/public" element={<TransparencyBoard />} /> {/* NEW Public Route */}
+          {/* Default Route -> Dashboard (Auto-Login handles auth) */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={<Navigate to="/dashboard" replace />} />
 
-          {/* Protected Routes (Enforced by AuthGate) */}
-          <Route path="/dashboard" element={<AuthGate><Layout><Dashboard /></Layout></AuthGate>} />
-          <Route path="/ingestion" element={<AuthGate><Layout><Ingestion /></Layout></AuthGate>} />
-          <Route path="/detection" element={<AuthGate><Layout><Detection /></Layout></AuthGate>} />
-          <Route path="/alerts" element={<AuthGate><Layout><Alerts /></Layout></AuthGate>} />
-          <Route path="/governance/detection" element={<AuthGate><Layout><DetectionCenter /></Layout></AuthGate>} />
-          <Route path="/cases" element={<AuthGate><Layout><CaseList /></Layout></AuthGate>} />
-          <Route path="/case/:id" element={<AuthGate><Layout><CaseDetails /></Layout></AuthGate>} />
-          <Route path="/procurement" element={<AuthGate><Layout><ProcurementPortal /></Layout></AuthGate>} />
-          <Route path="/transparency" element={<AuthGate><Layout><TransparencyBoard /></Layout></AuthGate>} />
-          <Route path="/graph" element={<AuthGate><Layout><EntityGraph /></Layout></AuthGate>} />
-          <Route path="/reports" element={<AuthGate><Layout><Reports /></Layout></AuthGate>} />
-          <Route path="/audit" element={<AuthGate><Layout><AuditLogs /></Layout></AuthGate>} />
-          <Route path="/settings" element={<AuthGate><Layout><Settings /></Layout></AuthGate>} />
+          <Route path="/public" element={<TransparencyBoard />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* All Routes are now "Public" in the sense of no Login UI, but we assume auto-login works */}
+          <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
+          <Route path="/ingestion" element={<Layout><Ingestion /></Layout>} />
+          <Route path="/detection" element={<Layout><Detection /></Layout>} />
+          <Route path="/alerts" element={<Layout><Alerts /></Layout>} />
+          <Route path="/governance/detection" element={<Layout><DetectionCenter /></Layout>} />
+          <Route path="/cases" element={<Layout><CaseList /></Layout>} />
+          <Route path="/case/:id" element={<Layout><CaseDetails /></Layout>} />
+          <Route path="/procurement" element={<Layout><ProcurementPortal /></Layout>} />
+          <Route path="/transparency" element={<Layout><TransparencyBoard /></Layout>} />
+          <Route path="/finance/dashboard" element={<Layout><FinanceDashboard /></Layout>} />
+          <Route path="/graph" element={<Layout><EntityGraph /></Layout>} />
+          <Route path="/reports" element={<Layout><Reports /></Layout>} />
+          <Route path="/audit" element={<Layout><AuditLogs /></Layout>} />
+          <Route path="/settings" element={<Layout><Settings /></Layout>} />
+
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>
-    </ErrorBoundary>
+    </SecuredErrorBoundary>
   );
 }
 

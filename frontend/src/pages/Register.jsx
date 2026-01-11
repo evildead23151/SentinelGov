@@ -111,6 +111,7 @@ const Register = () => {
                                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Organization</label>
                                 <select name="organization" value={formData.organization} onChange={handleChange} className="onboarding-input">
                                     <option value="DP">DP (Police)</option>
+                                    <option value="FIN">FIN (Finance Dept)</option>
                                     <option value="MIN">MIN (Ministry)</option>
                                     <option value="MOD">MOD (Defense)</option>
                                     <option value="CID">CID (Intelligence)</option>

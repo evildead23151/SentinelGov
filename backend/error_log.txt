@@ -1,0 +1,30 @@
+﻿python : Traceback (most recent 
+call last):
+At line:1 char:1
++ python -c "from main import 
+app" 2>&1 | Out-File -FilePath 
+"error_log ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo          : Not 
+   Specified: (Traceback (most r  
+  ecent call last)::String) [],   
+  RemoteException
+    + FullyQualifiedErrorId : Nat 
+   iveCommandError
+ 
+  File "<string>", line 1, in 
+<module>
+    from main import app
+  File "C:\Users\Gitesh malik\Docu
+ments\Backup\OneDrive\Desktop\Fold
+ers\Projects\Hack or 
+Case\Hack4Delhi\backend\main.py", 
+line 219, in <module>
+    @app.get("/api/tenders", respo
+nse_model=List[schemas.Tender])
+                                  
+          ^^^^
+NameError: name 'List' is not 
+defined. Did you mean: 'list'?
+Γä╣∩╕Å [DATABASE] Using Local SQLite (app.db)

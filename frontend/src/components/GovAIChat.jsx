@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, Terminal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import { systemApi } from '../api/client';
+import useStore from '../store/useStore';
 
 const GovAIChat = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -11,6 +13,7 @@ const GovAIChat = () => {
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef(null);
+    const { user } = useStore();
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -28,19 +31,21 @@ const GovAIChat = () => {
         setLoading(true);
 
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:8000/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ message: userMsg.content })
+            const res = await systemApi.chat({
+                message: userMsg.content,
+                actor_gov_id: user?.gov_id || "GUEST-LOG",
+                role: user?.role || "OFFICER",
+                context_scope: "GLOBAL_SOC"
             });
-            const data = await res.json();
-            setMessages(prev => [...prev, { role: 'agent', content: data.response }]);
+            const data = res.data;
+            setMessages(prev => [...prev, {
+                role: 'agent',
+                content: data.reply,
+                disclaimer: data.disclaimer,
+                trace_id: data.trace_id
+            }]);
         } catch (err) {
-            setMessages(prev => [...prev, { role: 'agent', content: "Error: Uplink failed." }]);
+            setMessages(prev => [...prev, { role: 'agent', content: "SYSTEM_ERROR: Neural uplink severed. Check secure gateway status." }]);
         } finally {
             setLoading(false);
         }
@@ -83,13 +88,22 @@ const GovAIChat = () => {
                             {messages.map((msg, idx) => (
                                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[85%] rounded p-3 text-xs leading-relaxed border ${msg.role === 'user'
-                                            ? 'bg-amber-900/20 border-amber-500/30 text-amber-100'
-                                            : 'bg-slate-900 border-slate-700 text-slate-300'
+                                        ? 'bg-amber-900/20 border-amber-500/30 text-amber-100'
+                                        : 'bg-slate-900 border-slate-700 text-slate-300'
                                         }`}>
                                         {msg.role === 'agent' ? (
-                                            <div className="prose prose-invert prose-xs max-w-none">
-                                                {/* Simple formatting for table-like output */}
+                                            <div className="prose prose-invert prose-xs max-w-none space-y-2">
                                                 <pre className="whitespace-pre-wrap font-mono text-[10px] bg-transparent p-0 m-0 border-0">{msg.content}</pre>
+                                                {msg.disclaimer && (
+                                                    <div className="pt-2 border-t border-white/5">
+                                                        <p className="text-[8px] text-slate-500 italic uppercase leading-tight font-bold tracking-tight">
+                                                            {msg.disclaimer}
+                                                        </p>
+                                                        {msg.trace_id && (
+                                                            <p className="text-[7px] text-slate-600 font-mono mt-0.5">AUTH_LOG: {msg.trace_id}</p>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : msg.content}
                                     </div>

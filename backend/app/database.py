@@ -54,7 +54,7 @@ def get_db_engine():
     
     # Fallback / Default
     print("ℹ️ [DATABASE] Using Local SQLite (app.db)")
-    SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
+    SQLALCHEMY_DATABASE_URL = "sqlite:///./app_v3.db"
     return create_engine(
         SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
     )

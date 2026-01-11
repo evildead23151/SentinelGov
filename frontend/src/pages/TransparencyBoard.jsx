@@ -21,7 +21,7 @@ const TransparencyBoard = () => {
         try {
             const res = await fetch('http://localhost:8000/api/public/transparency');
             const data = await res.json();
-            setRecords(data);
+            setRecords(Array.isArray(data) ? data : []);
             setLoading(false);
         } catch (err) {
             console.error("Failed to load transparency data", err);

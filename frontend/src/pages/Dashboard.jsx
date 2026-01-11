@@ -71,9 +71,14 @@ const Dashboard = () => {
     const ingestReport = location.state?.ingestReport;
 
     useEffect(() => {
-        fetchStatus();
-        fetchAlerts();
-        fetchTrend();
+        const load = () => {
+            fetchStatus();
+            fetchAlerts();
+            fetchTrend();
+        };
+        load();
+        const interval = setInterval(fetchStatus, 10000); // 10s Polling for State Consistency
+        return () => clearInterval(interval);
     }, [fetchStatus, fetchAlerts, fetchTrend]);
 
     const formatCurrency = (val) => {
@@ -85,7 +90,16 @@ const Dashboard = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Top Grid (Spec v2.0 - Real Data) */}
+            {/* System Health Guardian (Fail Closed) */}
+            {systemStats.status !== "OPERATIONAL" && (
+                <div className="panel border-l-4 border-red-600 bg-red-600/10 mb-6 flex items-center space-x-4 animate-pulse">
+                    <Shield className="w-6 h-6 text-red-600" />
+                    <div>
+                        <h3 className="text-sm font-bold text-red-500 uppercase">System Integrity Breach / Connection Lost</h3>
+                        <p className="text-[10px] text-slate-400 mt-0.5">The GovIntel secure gateway is currently unresponsive. Enforcement functions are suspended until a secure link is re-established.</p>
+                    </div>
+                </div>
+            )}
             {ingestReport && (
                 <div className="panel border-l-4 border-green-500 bg-green-500/10 mb-6 flex items-center justify-between animate-in slide-in-from-top-4 duration-700">
                     <div className="flex items-center space-x-4">
@@ -120,12 +134,11 @@ const Dashboard = () => {
                     color="#ef4444"
                 />
                 <StatCard
-                    title="Active Alerts"
-                    value={systemStats.active_cases || 0}
-                    subvalue="Requiring Review"
-                    icon={Briefcase}
-                    trend={8.2}
-                    color="#f59e0b"
+                    title="Tender Flag Rate"
+                    value={`${systemStats?.tender_flag_rate?.toFixed(1) || 0}%`}
+                    icon={AlertTriangle}
+                    color="red"
+                    trend="+2.1% vs avg"
                 />
                 <StatCard
                     title="Payments on Hold"
@@ -168,52 +181,29 @@ const Dashboard = () => {
                                 </div>
                             ) : (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <AreaChart data={trendData}>
                                         <defs>
                                             <linearGradient id="colorNormal" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
                                                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                                             </linearGradient>
-                                            <linearGradient id="colorAnomaly" x1="0" y1="0" x2="0" y2="1">
+                                            <linearGradient id="colorAnomalous" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
                                                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e2530" vertical={false} />
-                                        <XAxis
-                                            dataKey="day"
-                                            stroke="#475569"
-                                            fontSize={9}
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tick={{ fill: '#64748b' }}
-                                        />
-                                        <YAxis
-                                            stroke="#475569"
-                                            fontSize={9}
-                                            tickLine={false}
-                                            axisLine={false}
-                                            tick={{ fill: '#64748b' }}
-                                        />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: '#11141b', border: '1px solid #1e2530', borderRadius: '8px' }}
                                             itemStyle={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}
                                         />
                                         <Area
                                             type="monotone"
-                                            dataKey="normal"
-                                            stroke="#3b82f6"
-                                            strokeWidth={2}
-                                            fillOpacity={1}
-                                            fill="url(#colorNormal)"
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="anomalous"
+                                            dataKey="flag_rate"
+                                            name="% Tenders Flagged"
                                             stroke="#ef4444"
                                             strokeWidth={2}
                                             fillOpacity={1}
-                                            fill="url(#colorAnomaly)"
+                                            fill="url(#colorAnomalous)"
                                         />
                                     </AreaChart>
                                 </ResponsiveContainer>

@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import { systemApi, alertApi, caseApi, vendorApi } from '../api/client';
+import { systemApi, alertApi, caseApi, vendorApi, transactionApi } from '../api/client';
 import Fuse from 'fuse.js';
 
 const useStore = create((set, get) => ({
     user: null,
-    authStatus: 'AUTH_LOADING', // AUTH_LOADING, AUTHENTICATED, UNAUTHENTICATED
+    authStatus: 'UNAUTHENTICATED', // Start unauthenticated to trigger auto-login in App
     token: localStorage.getItem('sentinel_token') || null,
     systemStats: {
         status: "OPERATIONAL",
@@ -14,7 +14,7 @@ const useStore = create((set, get) => ({
         risk_exposure: 0,
         active_cases: 0,
         ai_confidence: 98.4,
-        model_version: "v1.0"
+        model_version: "v3.0.0"
     },
     trendData: [],
     isSidebarOpen: true,
@@ -23,8 +23,10 @@ const useStore = create((set, get) => ({
     alerts: [],
     cases: [],
     vendors: [],
+    tenders: [],
     searchResults: [],
     isSearching: false,
+    institutionalMessages: [],
 
     // Auth Actions
     login: async (username, password) => {
@@ -36,19 +38,29 @@ const useStore = create((set, get) => ({
             return true;
         } catch (err) {
             set({ authStatus: 'UNAUTHENTICATED' });
-            throw new Error(err.response?.data?.detail || "Login Failed");
+            // Don't throw for auto-login transparency
+            console.error("Auto-login failed:", err);
+            return false;
         }
     },
 
-    register: async (data) => {
+    switchRole: async (role) => {
+        const { login } = get();
+        if (role === 'INVESTIGATOR') {
+            await login('investigator', 'police123');
+        } else if (role === 'FINANCE_OFFICER') {
+            await login('treasury', 'finance123');
+        }
+    },
+
+    register: async (userData) => {
         try {
-            const res = await systemApi.register(data);
+            const res = await systemApi.register(userData);
             const { access_token, user } = res.data;
             localStorage.setItem('sentinel_token', access_token);
             set({ user, token: access_token, authStatus: 'AUTHENTICATED' });
             return true;
         } catch (err) {
-            set({ authStatus: 'UNAUTHENTICATED' });
             throw new Error(err.response?.data?.detail || "Registration Failed");
         }
     },
@@ -56,6 +68,7 @@ const useStore = create((set, get) => ({
     logout: () => {
         localStorage.removeItem('sentinel_token');
         set({ user: null, token: null, authStatus: 'UNAUTHENTICATED' });
+        window.location.href = '/login';
     },
 
     validateIdentity: async () => {
@@ -73,7 +86,7 @@ const useStore = create((set, get) => ({
         }
     },
 
-    // Actions
+    // Data Actions
     fetchStatus: async () => {
         try {
             const res = await systemApi.getStatus();
@@ -83,9 +96,9 @@ const useStore = create((set, get) => ({
         }
     },
 
-    fetchAlerts: async (severity) => {
+    fetchAlerts: async () => {
         try {
-            const res = await alertApi.list(severity);
+            const res = await alertApi.list();
             set({ alerts: res.data });
         } catch (err) {
             console.error("Failed to fetch alerts", err);
@@ -95,23 +108,15 @@ const useStore = create((set, get) => ({
     fetchCases: async () => {
         try {
             const res = await caseApi.list();
-            set({ cases: res.data });
+            set({ cases: res.data || [] });
         } catch (err) {
             console.error("Failed to fetch cases", err);
         }
     },
 
-    fetchVendors: async () => {
-        try {
-            const res = await vendorApi.list();
-            set({ vendors: res.data });
-        } catch (err) {
-            console.error("Failed to fetch vendors", err);
-        }
-    },
-
     fetchTrend: async () => {
         try {
+            // Use systemApi to fetch trend data
             const res = await systemApi.getTrend();
             set({ trendData: res.data });
         } catch (err) {
@@ -119,67 +124,113 @@ const useStore = create((set, get) => ({
         }
     },
 
-    pollEvents: async () => {
+    fetchInstitutionalMessages: async () => {
+        const { user } = get();
+        if (!user) return;
         try {
-            const res = await systemApi.getEvents();
-            const newEvents = res.data;
-            if (newEvents.length > 0) {
-                const currentNotifs = get().notifications;
-                const latestId = currentNotifs.length > 0 ? currentNotifs[0].id : 0;
-
-                // Filter only new events that we haven't seen in the list
-                const filtered = newEvents.filter(e => e.id > latestId);
-
-                if (filtered.length > 0) {
-                    const formatted = newEvents.slice(0, 15).map(e => ({
-                        id: e.id,
-                        type: e.type,
-                        title: e.message,
-                        time: new Date(e.timestamp).toLocaleTimeString(),
-                        isRead: false
-                    }));
-
-                    set((state) => ({
-                        notifications: formatted,
-                        unreadNotifications: state.unreadNotifications + filtered.length
-                    }));
-                }
-            }
+            const res = await systemApi.getMessages(user.role);
+            set({ institutionalMessages: res.data || [] });
         } catch (err) {
-            console.error("Polling failed", err);
+            console.error("Failed to fetch messages", err);
         }
     },
 
-    clearUnread: () => {
-        set({ unreadNotifications: 0 });
+    // Procedural/Enforcement Actions
+    acknowledgeAlert: async (id) => {
+        try {
+            await alertApi.acknowledge(id);
+            await get().invalidateState();
+            return true;
+        } catch (err) {
+            console.error("Failed to acknowledge alert", err);
+            throw err;
+        }
+    },
+
+    resolveAlert: async (id, note, outcome) => {
+        try {
+            await alertApi.resolve(id, { note, outcome });
+            await get().invalidateState();
+            return true;
+        } catch (err) {
+            console.error("Failed to resolve alert", err);
+            throw err;
+        }
+    },
+
+    releasePayment: async (id, note) => {
+        try {
+            await transactionApi.release(id, { note });
+            await get().invalidateState();
+            return true;
+        } catch (err) {
+            console.error("Failed to release payment", err);
+            throw err;
+        }
+    },
+
+    // State Invalidation (Enforces Consistency)
+    invalidateState: async () => {
+        try {
+            const { fetchStatus, fetchAlerts, fetchCases, fetchInstitutionalMessages } = get();
+            await Promise.all([
+                fetchStatus(),
+                fetchAlerts(),
+                fetchCases(),
+                fetchInstitutionalMessages()
+            ]);
+        } catch (err) {
+            console.error("State invalidation failed", err);
+        }
     },
 
     performSearch: (query) => {
-        if (!query) {
+        const { alerts, vendors, tenders } = get();
+        if (!query || query.trim() === '') {
             set({ searchResults: [], isSearching: false });
             return;
         }
 
-        const { alerts, cases, vendors } = get();
-        const data = [
-            ...alerts.map(a => ({ ...a, searchType: 'ALERT', display: `Alert: ${a.description || a.invoice_id}` })),
-            ...cases.map(c => ({ ...c, searchType: 'CASE', display: `Case: ${c.case_id} - ${c.entity_name}` })),
-            ...vendors.map(v => ({ ...v, searchType: 'VENDOR', display: `Vendor: ${v.name} (${v.vendor_id})` }))
+        set({ isSearching: true });
+
+        // Configuration for Fuse
+        const options = {
+            keys: ['id', 'vendor_id', 'department', 'description', 'title'],
+            threshold: 0.4
+        };
+
+        // Combine data sources
+        const allData = [
+            ...alerts.map(a => ({ ...a, type: 'ALERT', title: `Alert ${a.id}: ${a.vendor_id}` })),
+            ...vendors.map(v => ({ ...v, type: 'VENDOR', title: `Vendor: ${v.name}` })),
+            // Add other entities as needed
         ];
 
-        const fuse = new Fuse(data, {
-            keys: ['display', 'vendor_id', 'case_id', 'invoice_id', 'entity_name', 'name'],
-            threshold: 0.3
-        });
+        const fuse = new Fuse(allData, options);
+        const results = fuse.search(query).map(result => result.item);
 
-        const results = fuse.search(query).map(r => r.item);
-        set({ searchResults: results, isSearching: true });
+        set({ searchResults: results, isSearching: false });
     },
 
+    // UI Actions
+    pollEvents: async () => {
+        try {
+            const res = await systemApi.getEvents();
+            const newEvents = res.data;
+            if (newEvents && newEvents.length > 0) {
+                set((state) => ({
+                    notifications: [...newEvents, ...state.notifications].slice(0, 50), // Keep last 50
+                    unreadNotifications: state.unreadNotifications + newEvents.length
+                }));
+            }
+        } catch (err) {
+            // Passive polling, ignore errors to avoid noise
+        }
+    },
+
+    clearUnread: () => set({ unreadNotifications: 0 }),
+
     toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-    addNotification: (notif) => set((state) => ({
-        notifications: [notif, ...state.notifications].slice(0, 5)
-    })),
 }));
 
 export default useStore;
