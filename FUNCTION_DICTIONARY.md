@@ -1,58 +1,42 @@
-# Function Dictionary: SentinelGov Core Logic
+# Function Dictionary: SentinelGov Core Logic (v3.1.1)
 
 This document provides a detailed breakdown of the critical functions and logical blocks that power the SentinelGov platform.
 
 ## 1. Backend: Detection & Intelligence (`backend/app/detection.py`)
 
 ### `AnomalyEngine.process_forensic_payload(payload)`
-- **Role**: The "Scoring Pure Function". It accepts a standardized feature set and returns a locked risk result.
+- **Role**: The "Scoring Pure Function". It accepts a standardized feature set and returns a risk-weighted result.
 - **Logic**:
     - **Hard Constraint**: If `bid_rank == 1` AND `budget_ratio <= 1.0`, risk is forced to 0.
-    - **Layer 1 (Rules)**: Rank penalties (+10 for R2, +25 for R3, +50 for R4+), Bid Spread penalties, and Over-Budget penalties.
-    - **Layer 2 (Stats)**: Z-Score calculated for the winning bid if `num_bidders >= 5`.
-    - **Layer 3 (ML Support)**: Vendor win frequency checks.
-- **Output**: Dictionary with `risk_score`, `risk_band`, `primary_trigger`, and `explanation`.
+    - **Layer 1 (Rules)**: Rank penalties, Bid Spread penalties, and Over-Budget penalties.
+    - **Layer 2 (Statistical Support)**: Z-Score calculated if `num_bidders >= 5`.
+    - **Layer 3 (ML-Assisted Signals)**: Vendor win frequency checks as supporting behavioral indicators.
 
 ### `AnomalyEngine.analyze_tender(db, tender)`
 - **Role**: Orchestrator for tender analysis.
-- **Logic**: Fetches all bids for a tender, computes features (Rank, Spread, Budget Ratio, Win Frequency), calculates statistical signals, and passes the payload to `process_forensic_payload`.
-- **Side Effect**: Updates risk scores and explanations for all transactions linked to the tender.
+- **Logic**: Fetches bids, computes features (Rank, Spread, etc.), and triggers the scoring pure function.
 
 ## 2. Backend: API Endpoints (`backend/main.py`)
 
 ### `seed_data(db)`
-- **Role**: Database initializer.
-- **Logic**: Ensures mandatory SystemState, Vendors, and Users (Investigator, Treasury, Admin) exist. Now idempotent (checks for existence before insertion).
-- **Demo Scenarios**: Seeds specific sanctioned procurement records for the Transparency Board.
+- **Role**: Database initializer. Now idempotent to prevent startup inconsistencies.
 
 ### `get_system_status(db)`
-- **Role**: "Single Source of Truth" for KPIs.
-- **Logic**: Aggregates `total_transactions`, `funds_monitored`, and `risk_exposure` (sum of amounts on hold/blocked).
-
-### `acknowledge_alert(alert_id, db, username)`
-- **Role**: Investigative lifecycle start.
-- **Logic**: Marks alert as `ACKNOWLEDGED`, logs it in `ActionLog`.
+- **Role**: "Single Source of Truth" for KPIs. Includes funds monitored and risk exposure.
 
 ### `release_payment(tx_id, payload, db, username)`
-- **Role**: Financial enforcement Release.
-- **Logic**: Marks transaction as `CLEARED`, automatically resolves any linked alerts as `CLEARED`, and logs the action.
+- **Role**: Treasury Authorization gate. 
+- **Logic**: Resolves administrative holds, allowing for disbursement authorization.
 
-## 3. Frontend: State Management (`frontend/src/store/useStore.js`)
-
-### `switchRole(role)`
-- **Role**: Demo identity switcher.
-- **Logic**: Performs an auto-login with hardcoded credentials (`investigator`, `treasury`) to swap permissions instantly.
+## 3. Frontend: Logic
 
 ### `invalidateState()`
-- **Role**: Global UI synchronizer.
-- **Logic**: Triggers a parallel fetch of `Status`, `Alerts`, `Cases`, and `Messages` to ensure the dashboard reflects the latest backend state after any action.
+- **Role**: Global UI synchronizer. Ensures investigators and finance leads see consistent state after any hold or release action.
 
 ### `performSearch(query)`
-- **Role**: Fuzzy entity lookup.
-- **Logic**: Uses `Fuse.js` to search across combined sources (Alerts, Vendors, Tenders) locally in the browser for high-performance results.
+- **Role**: Fuzzy entity lookup for rapid discovery of vendors and tenders.
 
-## 4. Frontend: Components
+## 4. Safety Components
 
 ### `SecuredErrorBoundary`
-- **Role**: Safety wrapper.
-- **Logic**: Catches UI crashes (like the `SECURED_LAYER_ABORT`) and displays a fallback specialized for governance tracking.
+- **Role**: Governance-aware safety wrapper. Catches UI crashes while preserving the "Secure Link" status for auditing stability.
